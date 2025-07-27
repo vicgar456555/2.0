@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Juego Control Energético</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #000;
+      color: #fff;
+      padding: 20px;
+      transition: background-color 0.5s;
+    }
+    .boton-juego {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #333;
+      border: none;
+      border-radius: 10px;
+      color: white;
+      cursor: pointer;
+    }
+    .bloqueado {
+      background-color: #555;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    #circulo {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      margin: 30px auto;
+      background-color: white;
+    }
+    @keyframes lento { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+    @keyframes rapido { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.6); } }
+    @keyframes extremo { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.9); } }
+    @keyframes extremo1 { 0%, 100% { transform: scale(1); } 50% { transform: scale(2.2); } }
+    @keyframes descanso { 0%, 100% { transform: scale(1); background-color: gray; } 50% { transform: scale(1.1); } }
+    #mensajeFinal {
+      font-size: 24px;
+      margin-top: 20px;
+    }
+    #reloj {
+      font-size: 18px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Juego Control Energético</h1>
+  <div id="botones">
+    <button class="boton-juego" onclick="iniciarJuego(6)">Modo Fácil (6 min)</button>
+    <button class="boton-juego" id="medio" onclick="iniciarJuego(8)">Modo Medio (8 min)</button>
+    <button class="boton-juego" id="dificil" onclick="iniciarJuego(10)">Modo Difícil (10 min)</button>
+  </div>
+
+  <div id="circulo"></div>
+  <div id="reloj"></div>
+  <div id="mensajeFinal"></div>
+
+  <button class="boton-juego" onclick="reportarFallo()">Fallé (bloquea niveles por 3 horas)</button>
+
+  <button class="boton-juego" id="modoCastigoBtn" style="display:none;" onclick="iniciarModoCastigo()">Modo Castigo (Ritmo Lento)</button>
+
+  <script>
+    let intervaloRitmo, tiempoRestante, intervaloReloj;
+    const ritmos = ["lento", "rapido", "extremo", "extremo1"];
+    const colores = ["#111", "#222", "#333", "#444", "#550000", "#330033"];
+    const bloqueoHoras = 3; // bloqueo por 3 horas
+
+    function iniciarJuego(minutos) {
+      if (hayBloqueo()) {
+        alert("Has fallado recientemente. Debes esperar antes de avanzar a niveles más difíciles.");
+        return;
+      }
+      clearInterval(intervaloRitmo);
+      clearInterval(intervaloReloj);
+
+      const circulo = document.getElementById("circulo");
+      const reloj = document.getElementById("reloj");
+      const mensajeFinal = document.getElementById("mensajeFinal");
+      mensajeFinal.textContent = "";
+      tiempoRestante = minutos * 60;
+
+      intervaloReloj = setInterval(() => {
+        tiempoRestante--;
+        reloj.textContent = `Tiempo restante: ${formatoTiempo(tiempoRestante)}`;
+        if (tiempoRestante <= 5) {
+          mensajeFinal.textContent = "¡YA CORRETE!";
+        }
+        if (tiempoRestante <= 0) {
+          clearInterval(intervaloRitmo);
+          clearInterval(intervaloReloj);
+          mensajeFinal.textContent = "¡Has completado el nivel!";
+          circulo.style.animation = "none";
+        }
+      }, 1000);
+
+      intervaloRitmo = setInterval(() => {
+        const ritmo = ritmos[Math.floor(Math.random() * ritmos.length)];
+        circulo.style.animation = ritmo + " 1s infinite";
+        document.body.style.backgroundColor = colores[Math.floor(Math.random() * colores.length)];
+      }, 10000);
+    }
+
+    function formatoTiempo(segundos) {
+      const m = Math.floor(segundos / 60);
+      const s = segundos % 60;
+      return `${m}:${s < 10 ? "0" : ""}${s}`;
+    }
+
+    function reportarFallo() {
+      const bloqueoHasta = Date.now() + bloqueoHoras * 60 * 60 * 1000;
+      localStorage.setItem("fallo", bloqueoHasta);
+      bloquearNiveles();
+      document.getElementById("modoCastigoBtn").style.display = "inline-block";
+      alert("Fallaste. Los siguientes niveles han sido bloqueados por 3 horas.");
+    }
+
+    function bloquearNiveles() {
+      const btnMedio = document.getElementById("medio");
+      const btnDificil = document.getElementById("dificil");
+      btnMedio.classList.add("bloqueado");
+      btnMedio.disabled = true;
+      btnDificil.classList.add("bloqueado");
+      btnDificil.disabled = true;
+    }
+
+    function desbloquearNiveles() {
+      const btnMedio = document.getElementById("medio");
+      const btnDificil = document.getElementById("dificil");
+      btnMedio.classList.remove("bloqueado");
+      btnMedio.disabled = false;
+      btnDificil.classList.remove("bloqueado");
+      btnDificil.disabled = false;
+      document.getElementById("modoCastigoBtn").style.display = "none";
+      localStorage.removeItem("fallo");
+    }
+
+    function hayBloqueo() {
+      const bloqueo = localStorage.getItem("fallo");
+      if (!bloqueo) return false;
+      const ahora = Date.now();
+      if (ahora > bloqueo) {
+        desbloquearNiveles();
+        return false;
+      }
+      return true;
+    }
+
+    function iniciarModoCastigo() {
+      clearInterval(intervaloRitmo);
+      clearInterval(intervaloReloj);
+      const circulo = document.getElementById("circulo");
+      const reloj = document.getElementById("reloj");
+      const mensajeFinal = document.getElementById("mensajeFinal");
+      mensajeFinal.textContent = "";
+      tiempoRestante = 5 * 60; // castigo 5 minutos
+      reloj.textContent = "";
+
+      intervaloReloj = setInterval(() => {
+        tiempoRestante--;
+        reloj.textContent = `Tiempo restante (castigo): ${formatoTiempo(tiempoRestante)}`;
+        if (tiempoRestante <= 5) {
+          mensajeFinal.textContent = "¡YA CORRETE!";
+        }
+        if (tiempoRestante <= 0) {
+          clearInterval(intervaloRitmo);
+          clearInterval(intervaloReloj);
+          mensajeFinal.textContent = "¡Castigo terminado! Ya puedes intentar los niveles.";
+          desbloquearNiveles();
+          circulo.style.animation = "none";
+        }
+      }, 1000);
+
+      // Ritmo lento, fondo fijo
+      circulo.style.animation = "lento 1s infinite";
+      document.body.style.backgroundColor = "#111";
+    }
+
+    window.onload = () => {
+      if (hayBloqueo()) {
+        bloquearNiveles();
+        document.getElementById("modoCastigoBtn").style.display = "inline-block";
+      }
+    };
+  </script>
+</body>
+</html>
